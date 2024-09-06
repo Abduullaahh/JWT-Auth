@@ -7,6 +7,16 @@ const auth = require('../middleware/auth');
 const cookieParser = require('cookie-parser');
 router.use(cookieParser());
 
+router.get('/user', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('-password');
+    res.json(user);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server error');
+  }
+});
+
 router.post('/signup', async (req, res) => {
   const { username, email, password } = req.body;
 
@@ -50,6 +60,7 @@ router.post('/signin', async (req, res) => {
 
     const payload = {
       user: {
+        id: user._id,
         username: user.username,
         email: user.email,
       },
@@ -65,7 +76,7 @@ router.post('/signin', async (req, res) => {
           secure: process.env.NODE_ENV === 'production',
           sameSite: 'strict',
           maxAge: 3600000
-        }).status(200).send({ msg: 'Signin successful', token });
+        }).status(200).send({ msg: 'Signin successful' });
       }
     );
   } catch (err) {
@@ -76,7 +87,7 @@ router.post('/signin', async (req, res) => {
 
 router.get('/user', auth, async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select('-password');
+    const user = await User.findById(req.user.id).select('-password -__v -_id');
     res.json(user);
   } catch (err) {
     console.error(err.message);

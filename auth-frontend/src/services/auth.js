@@ -15,17 +15,19 @@ export const login = async (username, password) => {
   const response = await axios.post(API_URL + 'signin', {
     username,
     password,
-  });
-  if (response.data.token) {
-    localStorage.setItem('user', JSON.stringify(response.data));
-  }
+  }, { withCredentials: true });
   return response.data;
 };
 
-export const logout = () => {
-  localStorage.removeItem('user');
+export const logout = async () => {
+  await axios.post(API_URL + 'logout', {}, { withCredentials: true });
 };
 
-export const getCurrentUser = () => {
-  return JSON.parse(localStorage.getItem('user'));
+export const getCurrentUser = async () => {
+  try {
+    const response = await axios.get(API_URL + 'user', { withCredentials: true });
+    return response.data;
+  } catch (error) {
+    return null;
+  }
 };
