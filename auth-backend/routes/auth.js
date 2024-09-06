@@ -85,6 +85,20 @@ router.post('/signin', async (req, res) => {
   }
 });
 
+router.post('/logout', (req, res) => {
+  try {
+    res.clearCookie('token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict'
+    });
+    res.status(200).send({ msg: 'Logout successful' });
+  } catch (err) {
+    console.error('Logout error:', err.message);
+    res.status(500).send('Server error');
+  }
+});
+
 router.get('/user', auth, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('-password -__v -_id');
