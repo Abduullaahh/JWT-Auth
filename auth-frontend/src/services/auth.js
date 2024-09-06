@@ -25,7 +25,7 @@ export const logout = async () => {
 
 export const getCurrentUser = async () => {
   try {
-    const response = await axios.get(API_URL + 'user', { withCredentials: true });
+    const response = await axios.get(API_URL + 'check', { withCredentials: true });
     return response.data;
   } catch (error) {
     return null;

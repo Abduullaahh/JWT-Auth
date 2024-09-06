@@ -7,16 +7,21 @@ const auth = require('../middleware/auth');
 const cookieParser = require('cookie-parser');
 router.use(cookieParser());
 
-router.get('/user', auth, async (req, res) => {
+// Middleware to check authentication
+const checkAuth = async (req, res, next) => {
   try {
-    const user = await User.findById(req.user.id).select('-password');
-    res.json(user);
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server error');
-  }
-});
+    const token = req.cookies.token;
+    if (!token) return res.status(401).json({ msg: 'No token, authorization denied' });
 
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = decoded.user;
+    next();
+  } catch (err) {
+    res.status(401).json({ msg: 'Token is not valid' });
+  }
+};
+
+// Sign Up
 router.post('/signup', async (req, res) => {
   const { username, email, password } = req.body;
 
@@ -26,17 +31,12 @@ router.post('/signup', async (req, res) => {
       return res.status(400).json({ msg: 'User already exists' });
     }
 
-    user = new User({
-      username,
-      email,
-      password,
-    });
+    user = new User({ username, email, password });
 
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(password, salt);
 
     await user.save();
-
     res.status(201).json({ msg: 'User registered successfully' });
   } catch (err) {
     console.error(err.message);
@@ -44,6 +44,7 @@ router.post('/signup', async (req, res) => {
   }
 });
 
+// Sign In
 router.post('/signin', async (req, res) => {
   const { username, password } = req.body;
 
@@ -58,33 +59,22 @@ router.post('/signin', async (req, res) => {
       return res.status(400).json({ msg: 'Invalid credentials' });
     }
 
-    const payload = {
-      user: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-      },
-    };
-    jwt.sign(
-      payload,
-      process.env.JWT_SECRET,
-      { expiresIn: '1h' },
-      (err, token) => {
-        if (err) throw err;
-        res.cookie('token', token, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'strict',
-          maxAge: 3600000
-        }).status(200).send({ msg: 'Signin successful' });
-      }
-    );
+    const payload = { user: { id: user._id } };
+    const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' });
+
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 3600000 // 1 hour
+    }).status(200).send({ msg: 'Signin successful' });
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server error');
   }
 });
 
+// Logout
 router.post('/logout', (req, res) => {
   try {
     res.clearCookie('token', {
@@ -99,14 +89,9 @@ router.post('/logout', (req, res) => {
   }
 });
 
-router.get('/user', auth, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id).select('-password -__v -_id');
-    res.json(user);
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server error');
-  }
+// Check Authentication
+router.get('/check', checkAuth, (req, res) => {
+  res.json({ msg: 'User is authenticated' });
 });
 
 module.exports = router;
